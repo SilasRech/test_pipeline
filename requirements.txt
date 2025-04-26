@@ -1,0 +1,7 @@
+typing
+pydantic
+langchain 
+langchain_groq
+numpy
+pandas
+re
