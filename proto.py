@@ -197,7 +197,7 @@ class Pipeline:
         print(f"on_startup:{__name__}")
 
         try:
-            df_graph = pd.read_csv('/app/backend/data/kg.csv ')
+            df_graph = pd.read_csv('kg.csv ')
             df_graph = df_graph.dropna()
             # Create document list from dataset
             documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
