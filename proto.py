@@ -5,14 +5,14 @@ date: 27/04/2025
 version: 0.1
 license: MIT
 description: A pipeline for retrieving relevant information from a knowledge graph from Espoo.
-requirements: typing, pydantic, langchain, langchain-community, langchain_groq, numpy, pandas, langchain-huggingface, faiss-cpu
+requirements: typing, pydantic, faiss-cpu, langchain, langchain-community, langchain_groq, numpy, pandas, langchain-huggingface
 """
 
 from typing import List, Union, Generator, Iterator
 from schemas import OpenAIChatMessage
 from pydantic import BaseModel
 
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.schema import Document, BaseRetriever  # Updated import for BaseRetriever
 from langchain.chains import RetrievalQA
