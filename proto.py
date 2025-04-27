@@ -17,6 +17,105 @@ import pandas as pd
 import re
 
 
+class Pipeline:
+    class Valves(BaseModel):
+        pass
+
+    def __init__(self):
+        # Optionally, you can set the id and name of the pipeline.
+        # Best practice is to not specify the id so that it can be automatically inferred from the filename, so that users can install multiple versions of the same pipeline.
+        # The identifier must be unique across all pipelines.
+        # The identifier must be an alphanumeric string that can include underscores or hyphens. It cannot contain spaces, special characters, slashes, or backslashes.
+        # self.id = "pipeline_example"
+
+        # The name of the pipeline.
+        self.name = "KG RAG ESPOO"
+        self.vectorstore = None
+        self.llm = ChatGroq(
+            model="llama-3.1-8b-instant",
+            temperature=0,
+            max_tokens=None,
+            timeout=None,
+            max_retries=2,
+
+        )
+        self.chunks = None
+        self.base_retriever = None
+
+        pass
+
+    async def on_startup(self):
+        # This function is called when the server is started.
+        print(f"on_startup:{__name__}")
+
+        try:
+            df_graph = pd.read_csv('kg.csv ')
+            df_graph = df_graph.dropna()
+            # Create document list from dataset
+            documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
+            print('Successfully loaded graph.')
+        except:
+            print('Could not load KG - not found.')
+            documents = ''
+
+        # Initialize embedding model
+        embedding_model_name = "multi-qa-mpnet-base-cos-v1"
+        embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
+
+        self.chunks = create_chunks(documents)
+        vectorstore = FAISS.from_documents(self.chunks, embeddings)
+        self.base_retriever = vectorstore.as_retriever(search_type="mmr",
+                                                       search_kwargs={'k': 50, 'fetch_k': 200, 'lambda_mult': 0.25})
+
+
+    async def on_shutdown(self):
+        # This function is called when the server is stopped.
+        print(f"on_shutdown:{__name__}")
+        pass
+
+    async def on_valves_updated(self):
+        # This function is called when the valves are updated.
+        pass
+
+    async def inlet(self, body: dict, user: dict) -> dict:
+        # This function is called before the OpenAI API request is made. You can modify the form data before it is sent to the OpenAI API.
+        print(f"inlet:{__name__}")
+
+        print(body)
+        print(user)
+
+
+        return body
+
+    async def outlet(self, body: dict, user: dict) -> dict:
+        # This function is called after the OpenAI API response is completed. You can modify the messages after they are received from the OpenAI API.
+        print(f"outlet:{__name__}")
+
+        print(body)
+        print(user)
+
+        return body
+
+    def pipe(
+        self, user_message: str, model_id: str, messages: List[dict], body: dict
+    ) -> Union[str, Generator, Iterator]:
+        # This is where you can add your custom pipelines like RAG.
+
+        try:
+            filtered_chain, filtered_retriever = get_retreival_chain(user_message, self.base_retriever, self.chunks,
+                                                                     self.llm)
+            response = filtered_chain.run(user_message)
+            # Extract links of sources used in the response
+            relevant_docs = filtered_retriever.get_relevant_documents(user_message)
+            source_links = [doc.metadata["link"] for doc in relevant_docs]
+            response += f"These are the sources for my answer: {source_links}"
+        except Exception as e:
+            response = f'Could not complete knowledge search, ERROR: {e}'
+            print("ERROR retrieving")
+
+        return response
+
+
 class FilteredRetriever(BaseRetriever):
     retriever: BaseRetriever = Field(...)
     original_documents: List[Document] = Field(...)
@@ -155,100 +254,3 @@ def get_retreival_chain(query, base_retriever, chunks, llm):
     return retrieval_chain, filtered_retriever
 
 
-class Pipeline:
-    class Valves(BaseModel):
-        pass
-
-    def __init__(self):
-        # Optionally, you can set the id and name of the pipeline.
-        # Best practice is to not specify the id so that it can be automatically inferred from the filename, so that users can install multiple versions of the same pipeline.
-        # The identifier must be unique across all pipelines.
-        # The identifier must be an alphanumeric string that can include underscores or hyphens. It cannot contain spaces, special characters, slashes, or backslashes.
-        # self.id = "pipeline_example"
-
-        # The name of the pipeline.
-        self.name = "KG RAG ESPOO"
-        self.vectorstore = None
-        self.llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-
-        )
-        self.chunks = None
-        self.base_retriever = None
-
-        pass
-
-    async def on_startup(self):
-        # This function is called when the server is started.
-        print(f"on_startup:{__name__}")
-
-        try:
-            df_graph = pd.read_csv('kg.csv ')
-            df_graph = df_graph.dropna()
-            # Create document list from dataset
-            documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
-            print('Successfully loaded graph.')
-        except:
-            print('Could not load KG - not found.')
-            documents = ''
-
-        # Initialize embedding model
-        embedding_model_name = "multi-qa-mpnet-base-cos-v1"
-        embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
-
-        self.chunks = create_chunks(documents)
-        vectorstore = FAISS.from_documents(self.chunks, embeddings)
-        self.base_retriever = vectorstore.as_retriever(search_type="mmr",
-                                                       search_kwargs={'k': 50, 'fetch_k': 200, 'lambda_mult': 0.25})
-
-
-    async def on_shutdown(self):
-        # This function is called when the server is stopped.
-        print(f"on_shutdown:{__name__}")
-        pass
-
-    async def on_valves_updated(self):
-        # This function is called when the valves are updated.
-        pass
-
-    async def inlet(self, body: dict, user: dict) -> dict:
-        # This function is called before the OpenAI API request is made. You can modify the form data before it is sent to the OpenAI API.
-        print(f"inlet:{__name__}")
-
-        print(body)
-        print(user)
-
-
-        return body
-
-    async def outlet(self, body: dict, user: dict) -> dict:
-        # This function is called after the OpenAI API response is completed. You can modify the messages after they are received from the OpenAI API.
-        print(f"outlet:{__name__}")
-
-        print(body)
-        print(user)
-
-        return body
-
-    def pipe(
-        self, user_message: str, model_id: str, messages: List[dict], body: dict
-    ) -> Union[str, Generator, Iterator]:
-        # This is where you can add your custom pipelines like RAG.
-
-        try:
-            filtered_chain, filtered_retriever = get_retreival_chain(user_message, self.base_retriever, self.chunks,
-                                                                     self.llm)
-            response = filtered_chain.run(user_message)
-            # Extract links of sources used in the response
-            relevant_docs = filtered_retriever.get_relevant_documents(user_message)
-            source_links = [doc.metadata["link"] for doc in relevant_docs]
-            response += f"These are the sources for my answer: {source_links}"
-        except Exception as e:
-            response = f'Could not complete knowledge search, ERROR: {e}'
-            print("ERROR retrieving")
-
-        return response
