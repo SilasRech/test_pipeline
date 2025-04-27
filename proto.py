@@ -1,14 +1,3 @@
-"""
-title: Chat with Espoo Info
-author: Silas Rech
-date: 26.04.2025
-version: 0.1
-license: MIT
-description: A pipeline to chat with local knowledge from Espoo
-requirements: langchain_groq, langchain, pandas, pydantic
-environment_variables: GROQ_API_KEY
-"""
-
 from typing import List, Union, Generator, Iterator
 from schemas import OpenAIChatMessage
 from pydantic import BaseModel
