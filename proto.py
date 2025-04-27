@@ -1,3 +1,13 @@
+"""
+title: Espoo 
+author: Silas Rech
+date: 27/04/2025
+version: 0.1
+license: MIT
+description: A pipeline for retrieving relevant information from a knowledge graph from Espoo.
+requirements: typing, pydantic, langchain, langchain_groq, numpy, pandas, re
+"""
+
 from typing import List, Union, Generator, Iterator
 from schemas import OpenAIChatMessage
 from pydantic import BaseModel
