@@ -71,7 +71,7 @@ class Pipeline:
         # Initialize embedding model
         embedding_model_name = "multi-qa-mpnet-base-cos-v1"
         embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
-
+        print(embeddings)
         self.chunks = create_chunks(documents)
         vectorstore = FAISS.from_documents(self.chunks, embeddings)
         self.base_retriever = vectorstore.as_retriever(search_type="mmr",
