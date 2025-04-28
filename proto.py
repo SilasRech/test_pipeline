@@ -62,7 +62,7 @@ class Pipeline:
 
          # Get all entries (files and directories) in the current directory
             entries = os.listdir('.') # '.' represents the current directory
-
+            print(f'Print Files:{len(entries)}')
             # Iterate through the entries
             for entry in entries:
                 # Check if the entry is a file (and not a directory)
