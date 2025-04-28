@@ -59,8 +59,6 @@ class Pipeline:
         # This function is called when the server is started.
         print(f"on_startup:{__name__}")
 
-       
-
         # Get all entries (files and directories) in the current directory
         #entries = os.listdir('.') # '.' represents the current directory
         #print(f'Print Files:{len(entries)}')
@@ -70,22 +68,22 @@ class Pipeline:
         #    if os.path.isfile(os.path.join('.', entry)):
         #        print(entry)
        # 
-        #df_graph = pd.read_csv('kg.csv')
-        #df_graph = df_graph.dropna()
+        df_graph = pd.read_csv('/app/pipelines/data/kg.csv')
+        df_graph = df_graph.dropna()
         # Create document list from dataset
-        #documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
-        #print('Successfully loaded graph.')
+        documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
+        print('Successfully loaded graph.')
     
         #print('Could not load KG - not found.')
-        #documents = ''
+        documents = ''
 
         # Initialize embedding model
-        #embedding_model_name = "multi-qa-mpnet-base-cos-v1"
-        #embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
-        #print(embeddings)
-        #self.chunks = create_chunks(documents)
-        #vectorstore = FAISS.from_documents(self.chunks, embeddings)
-        #self.base_retriever = vectorstore.as_retriever(search_type="mmr",
+        embedding_model_name = "multi-qa-mpnet-base-cos-v1"
+        embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
+        print(embeddings)
+        self.chunks = create_chunks(documents)
+        vectorstore = FAISS.from_documents(self.chunks, embeddings)
+        self.base_retriever = vectorstore.as_retriever(search_type="mmr",
          #                                              search_kwargs={'k': 50, 'fetch_k': 200, 'lambda_mult': 0.25})
 
 
