@@ -58,25 +58,25 @@ class Pipeline:
         # This function is called when the server is started.
         print(f"on_startup:{__name__}")
 
-        try:
+       
 
-         # Get all entries (files and directories) in the current directory
-            entries = os.listdir('.') # '.' represents the current directory
-            print(f'Print Files:{len(entries)}')
-            # Iterate through the entries
-            for entry in entries:
-                # Check if the entry is a file (and not a directory)
-                if os.path.isfile(os.path.join('.', entry)):
-                    print(entry)
-            
-            df_graph = pd.read_csv('/app/pipelines/kg.csv')
-            df_graph = df_graph.dropna()
-            # Create document list from dataset
-            documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
-            print('Successfully loaded graph.')
-        except:
-            print('Could not load KG - not found.')
-            documents = ''
+        # Get all entries (files and directories) in the current directory
+        entries = os.listdir('.') # '.' represents the current directory
+        print(f'Print Files:{len(entries)}')
+        # Iterate through the entries
+        for entry in entries:
+            # Check if the entry is a file (and not a directory)
+            if os.path.isfile(os.path.join('.', entry)):
+                print(entry)
+        
+        df_graph = pd.read_csv('/app/pipelines/kg.csv')
+        df_graph = df_graph.dropna()
+        # Create document list from dataset
+        documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
+        print('Successfully loaded graph.')
+    
+        print('Could not load KG - not found.')
+        documents = ''
 
         # Initialize embedding model
         embedding_model_name = "multi-qa-mpnet-base-cos-v1"
