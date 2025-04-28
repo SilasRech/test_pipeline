@@ -59,6 +59,16 @@ class Pipeline:
         print(f"on_startup:{__name__}")
 
         try:
+
+         # Get all entries (files and directories) in the current directory
+            entries = os.listdir('.') # '.' represents the current directory
+
+            # Iterate through the entries
+            for entry in entries:
+                # Check if the entry is a file (and not a directory)
+                if os.path.isfile(os.path.join('.', entry)):
+                    print(entry)
+            
             df_graph = pd.read_csv('/app/pipelines/kg.csv')
             df_graph = df_graph.dropna()
             # Create document list from dataset
