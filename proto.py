@@ -25,6 +25,7 @@ from langchain.prompts import PromptTemplate
 import numpy as np
 import pandas as pd
 import re
+import os
 
 
 class Pipeline:
