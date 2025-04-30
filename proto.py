@@ -15,6 +15,8 @@ from pydantic import BaseModel
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.graphs import NetworkxEntityGraph
+from langchain_community.graphs.graph_document import GraphDocument, Node, Relationship
+from langchain_core.documents import Document
 from langchain.schema import Document, BaseRetriever  # Updated import for BaseRetriever
 from langchain.chains import RetrievalQA
 from langchain_groq import ChatGroq
