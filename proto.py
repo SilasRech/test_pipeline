@@ -103,7 +103,7 @@ def get_relevant_docindex(df, relevant_edges):
 
 
 def get_filtered_index(question, df_graph):
-    print(question)
+    print(f"Question in filtered index: {question}")
 
     relevant_doc_indexes = []
     for t in question.split('\n'):
@@ -143,13 +143,24 @@ class Pipeline:
         self.chunks = None
         self.base_retriever = None
 
-        retriever: BaseRetriever = Field(...)
-        original_documents: List[Document] = Field(...)
-        index_filter: List[int] = Field(...)
-        embedding_model_name: str = Field("all-MiniLM-L6-v2")
-        top_k_initial: int = Field(50)  # Number of top documents to initially retrieve
-        k: int = Field(10)  # Final number of filtered documents to return
+        self.original_documents = []
+        self.index_filter = []
+        self.embedding_model_name: str = Field("all-MiniLM-L6-v2")
+        self.top_k_initial = 50  # Number of top documents to initially retrieve
+        self.k = 10
 
+        self.prompt_template = PromptTemplate(
+            input_variables=["context", "question"],
+
+            template="""You are an assistant for question-answering tasks.
+                                       Use the following documents to answer the question about migration in Finland.
+                                       Be concise as much as possible.
+                                       Do not include phrases about provided documents in the answer.
+
+                                       Question: {question}
+                                       Documents: {context}
+                                       Answer:
+                                       """)
 
 
         pass
@@ -169,19 +180,18 @@ class Pipeline:
        # 
         df_graph = pd.read_csv('/app/pipelines/data/kg.csv')
         df_graph = df_graph.dropna()
-        print(f"GRAPH: {df_graph}")
         # Create document list from dataset
         documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
         print('Successfully loaded graph.')
-        print(f"Documents: {documents}")
+
         # Initialize embedding model
         embedding_model_name = "multi-qa-mpnet-base-cos-v1"
         embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
-        
+
         self.chunks = create_chunks(documents)
-        print(f"CHUNKS: {self.chunks})
         vectorstore = FAISS.from_documents(self.chunks, embeddings)
         self.base_retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={'k': 50, 'fetch_k': 200, 'lambda_mult': 0.25})
+
 
     async def on_shutdown(self):
         # This function is called when the server is stopped.
@@ -215,22 +225,12 @@ class Pipeline:
         self, user_message: str, model_id: str, messages: List[dict], body: dict
     ) -> Union[str, Generator, Iterator]:
         # This is where you can add your custom pipelines like RAG.
-        prompt_template = PromptTemplate(
-            input_variables=["context", "question"],
-
-            template="""You are an assistant for question-answering tasks.
-                               Use the following documents to answer the question about migration in Finland.
-                               Be concise as much as possible.
-                               Do not include phrases about provided documents in the answer.
-
-                               Question: {question}
-                               Documents: {context}
-                               Answer:
-                               """)
+        print(f"User Message: {user_message}")
 
         try:
+            index_filter = get_filtered_index(user_message)
             # Create the retrieval chain with the filtered retriever
-            retrieval_chain = RetrievalQA.from_llm(llm=self.llm, retriever=self.base_retriever, prompt=prompt_template)
+            retrieval_chain = RetrievalQA.from_llm(llm=self.llm, retriever=self.base_retriever, prompt=self.prompt_template)
 
             response = retrieval_chain.run(user_message)
             # Extract links of sources used in the response
