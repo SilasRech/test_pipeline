@@ -5,7 +5,7 @@ date: 27/04/2025
 version: 0.1
 license: MIT
 description: A pipeline for retrieving relevant information from a knowledge graph from Espoo.
-requirements: faiss-cpu, langchain-community, langchain_groq, langchain-huggingface, hf_xet
+requirements: faiss-cpu, langchain-community, langchain_groq, langchain-huggingface
 """
 
 from typing import List, Union, Generator, Iterator
