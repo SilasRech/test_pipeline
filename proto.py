@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
+from langchain_community.graphs import NetworkxEntityGraph
 from langchain.schema import Document, BaseRetriever  # Updated import for BaseRetriever
 from langchain.chains import RetrievalQA
 from langchain_groq import ChatGroq
@@ -162,7 +163,8 @@ class Pipeline:
                                        Answer:
                                        """)
 
-
+        self.graph = NetworkxEntityGraph()
+        
         pass
 
     async def on_startup(self):
@@ -180,6 +182,20 @@ class Pipeline:
        # 
         df_graph = pd.read_csv('/app/pipelines/data/kg.csv')
         df_graph = df_graph.dropna()
+
+        for num in range(len(df_graph)):
+            # Add nodes to the graph
+            for node in test_graph[num].nodes:
+                self.graph.add_node(node.id)
+
+            # Add edges to the graph
+            for edge in test_graph[num].relationships:
+                self.graph._graph.add_edge(
+                    edge.source.id,
+                    edge.target.id,
+                    relation=edge.type,
+                )
+
         # Create document list from dataset
         documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
         print('Successfully loaded graph.')
@@ -228,7 +244,7 @@ class Pipeline:
         print(f"User Message: {user_message}")
 
         try:
-            index_filter = get_filtered_index(user_message)
+            index_filter = get_filtered_index(user_message, df_graph=self.graph)
             # Create the retrieval chain with the filtered retriever
             retrieval_chain = RetrievalQA.from_llm(llm=self.llm, retriever=self.base_retriever, prompt=self.prompt_template)
 
