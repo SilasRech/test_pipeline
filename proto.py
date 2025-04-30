@@ -243,8 +243,8 @@ class Pipeline:
         # This function is called before the OpenAI API request is made. You can modify the form data before it is sent to the OpenAI API.
         print(f"inlet:{__name__}")
 
-        print(body)
-        print(user)
+        #print(body)
+        #print(user)
 
 
         return body
@@ -253,8 +253,8 @@ class Pipeline:
         # This function is called after the OpenAI API response is completed. You can modify the messages after they are received from the OpenAI API.
         print(f"outlet:{__name__}")
 
-        print(body)
-        print(user)
+        #print(body)
+        #print(user)
 
         return body
 
@@ -272,8 +272,9 @@ class Pipeline:
             response = retrieval_chain.run(user_message)
             # Extract links of sources used in the response
             relevant_docs = get_relevant_documents(index_filter, self.base_retriever, k=10, top_k_initial=50, query=user_message)
-
+            print(relevant_docs)
             source_links = [doc.metadata["link"] for doc in relevant_docs]
+            
             response += f"These are the sources for my answer: {source_links}"
         except Exception as e:
             response = f'Could not complete knowledge search, ERROR: {e}'
