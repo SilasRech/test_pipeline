@@ -119,6 +119,23 @@ def get_filtered_index(question, df_graph):
     doc_index = list(set(relevant_doc_indexes))
     return doc_index
 
+
+def get_graph_documents(dataframe):
+    g_list = []
+    for num in range(len(dataframe)):
+        document = Document(page_content=dataframe.text.iloc[num], metadata={"source": dataframe.url.iloc[num]})
+        
+        nodes = [Node(id=dataframe.ent1.iloc[num], type=dataframe.ent1_type.iloc[num]), Node(id=dataframe.ent2.iloc[num], type=dataframe.ent2_type.iloc[num])]
+        relationships = [Relationship(
+                            source=Node(id=dataframe.ent1.iloc[num], type=dataframe.ent1_type.iloc[num]), 
+                            target=Node(id=dataframe.ent2.iloc[num], type=dataframe.ent2_type.iloc[num]), 
+                            type=dataframe.relation.iloc[num])]
+
+        g_list.append(GraphDocument(nodes=nodes, relationships=relationships, source=document))
+    
+    return g_list
+
+
 class Pipeline:
     class Valves(BaseModel):
         pass
@@ -183,6 +200,8 @@ class Pipeline:
         df_graph = pd.read_csv('/app/pipelines/data/kg.csv')
         df_graph = df_graph.dropna()
 
+        test_graph = get_graph_documents(df_graph)
+        
         for num in range(len(df_graph)):
             # Add nodes to the graph
             for node in test_graph[num].nodes:
