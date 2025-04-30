@@ -29,9 +29,35 @@ import os
 
 
 class Pipeline:
+    
+    class FilteredRetriever(BaseRetriever):
+    retriever: BaseRetriever = Field(...)
+    original_documents: List[Document] = Field(...)
+    index_filter: List[int] = Field(...)
+    embedding_model_name: str = Field("all-MiniLM-L6-v2")
+    top_k_initial: int = Field(50)  # Number of top documents to initially retrieve
+    k: int = Field(10)  # Final number of filtered documents to return
+
+    def get_relevant_documents(self, query: str) -> List[Document]:
+        # Step 1: Retrieve top `top_k_initial` documents based on relevance
+        initial_relevant_docs = self.retriever.get_relevant_documents(query)[:self.top_k_initial]
+        # print(len(initial_relevant_docs))
+
+        # Step 2: Filter these documents by `index_filter`
+        filtered_docs = [
+            doc for doc in initial_relevant_docs if doc.metadata["original_index"] in self.index_filter
+        ]
+
+        # Step 3: Return top `k` documents after filtering
+        # print(len(filtered_docs))
+        return filtered_docs[:self.k]
+
+    async def aget_relevant_documents(self, query: str) -> List[Document]:
+        return self.get_relevant_documents(query)
+        
     class Valves(BaseModel):
         pass
-
+    
     def __init__(self):
         # Optionally, you can set the id and name of the pipeline.
         # Best practice is to not specify the id so that it can be automatically inferred from the filename, so that users can install multiple versions of the same pipeline.
@@ -133,33 +159,6 @@ class Pipeline:
             print("ERROR retrieving")
 
         return response
-
-
-class FilteredRetriever(BaseRetriever):
-    retriever: BaseRetriever = Field(...)
-    original_documents: List[Document] = Field(...)
-    index_filter: List[int] = Field(...)
-    embedding_model_name: str = Field("all-MiniLM-L6-v2")
-    top_k_initial: int = Field(50)  # Number of top documents to initially retrieve
-    k: int = Field(10)  # Final number of filtered documents to return
-
-    def get_relevant_documents(self, query: str) -> List[Document]:
-        # Step 1: Retrieve top `top_k_initial` documents based on relevance
-        initial_relevant_docs = self.retriever.get_relevant_documents(query)[:self.top_k_initial]
-        # print(len(initial_relevant_docs))
-
-        # Step 2: Filter these documents by `index_filter`
-        filtered_docs = [
-            doc for doc in initial_relevant_docs if doc.metadata["original_index"] in self.index_filter
-        ]
-
-        # Step 3: Return top `k` documents after filtering
-        # print(len(filtered_docs))
-        return filtered_docs[:self.k]
-
-    async def aget_relevant_documents(self, query: str) -> List[Document]:
-        return self.get_relevant_documents(query)
-
 
 def create_query(row):
     answer_length = ' The answer should be maximum ' + str(np.mean([len(row['answer_1']), len(row['answer_2']), len(row['answer_3'])])) + ' characters.'
