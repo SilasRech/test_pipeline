@@ -28,137 +28,18 @@ import re
 import os
 
 
-class Pipeline:
-    
-    class FilteredRetriever(BaseRetriever):
-    retriever: BaseRetriever = Field(...)
-    original_documents: List[Document] = Field(...)
-    index_filter: List[int] = Field(...)
-    embedding_model_name: str = Field("all-MiniLM-L6-v2")
-    top_k_initial: int = Field(50)  # Number of top documents to initially retrieve
-    k: int = Field(10)  # Final number of filtered documents to return
+def get_relevant_documents(index_filter, retriever, k, top_k_initial, query: str) -> List[Document]:
+    # Step 1: Retrieve top `top_k_initial` documents based on relevance
+    initial_relevant_docs = retriever.get_relevant_documents(query)[:top_k_initial]
+    # print(len(initial_relevant_docs))
 
-    def get_relevant_documents(self, query: str) -> List[Document]:
-        # Step 1: Retrieve top `top_k_initial` documents based on relevance
-        initial_relevant_docs = self.retriever.get_relevant_documents(query)[:self.top_k_initial]
-        # print(len(initial_relevant_docs))
-
-        # Step 2: Filter these documents by `index_filter`
-        filtered_docs = [
-            doc for doc in initial_relevant_docs if doc.metadata["original_index"] in self.index_filter
-        ]
-
-        # Step 3: Return top `k` documents after filtering
-        # print(len(filtered_docs))
-        return filtered_docs[:self.k]
-
-    async def aget_relevant_documents(self, query: str) -> List[Document]:
-        return self.get_relevant_documents(query)
-        
-    class Valves(BaseModel):
-        pass
-    
-    def __init__(self):
-        # Optionally, you can set the id and name of the pipeline.
-        # Best practice is to not specify the id so that it can be automatically inferred from the filename, so that users can install multiple versions of the same pipeline.
-        # The identifier must be unique across all pipelines.
-        # The identifier must be an alphanumeric string that can include underscores or hyphens. It cannot contain spaces, special characters, slashes, or backslashes.
-        # self.id = "pipeline_example"
-
-        # The name of the pipeline.
-        self.name = "KG RAG ESPOO"
-        self.vectorstore = None
-        self.llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-
-        )
-        self.chunks = None
-        self.base_retriever = None
-
-        pass
-
-    async def on_startup(self):
-        # This function is called when the server is started.
-        print(f"on_startup:{__name__}")
-
-        # Get all entries (files and directories) in the current directory
-        #entries = os.listdir('.') # '.' represents the current directory
-        #print(f'Print Files:{len(entries)}')
-        # Iterate through the entries
-        #for entry in entries:
-            # Check if the entry is a file (and not a directory)
-        #    if os.path.isfile(os.path.join('.', entry)):
-        #        print(entry)
-       # 
-        df_graph = pd.read_csv('/app/pipelines/data/kg.csv')
-        df_graph = df_graph.dropna()
-        # Create document list from dataset
-        documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
-        print('Successfully loaded graph.')
-    
-        #print('Could not load KG - not found.')
-        documents = ''
-
-        # Initialize embedding model
-        embedding_model_name = "multi-qa-mpnet-base-cos-v1"
-        embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
-        print(embeddings)
-        self.chunks = create_chunks(documents)
-        vectorstore = FAISS.from_documents(self.chunks, embeddings)
-        self.base_retriever = vectorstore.as_retriever(search_type="mmr",
-         #                                              search_kwargs={'k': 50, 'fetch_k': 200, 'lambda_mult': 0.25})
-
-
-    async def on_shutdown(self):
-        # This function is called when the server is stopped.
-        print(f"on_shutdown:{__name__}")
-        pass
-
-    async def on_valves_updated(self):
-        # This function is called when the valves are updated.
-        pass
-
-    async def inlet(self, body: dict, user: dict) -> dict:
-        # This function is called before the OpenAI API request is made. You can modify the form data before it is sent to the OpenAI API.
-        print(f"inlet:{__name__}")
-
-        print(body)
-        print(user)
-
-
-        return body
-
-    async def outlet(self, body: dict, user: dict) -> dict:
-        # This function is called after the OpenAI API response is completed. You can modify the messages after they are received from the OpenAI API.
-        print(f"outlet:{__name__}")
-
-        print(body)
-        print(user)
-
-        return body
-
-    def pipe(
-        self, user_message: str, model_id: str, messages: List[dict], body: dict
-    ) -> Union[str, Generator, Iterator]:
-        # This is where you can add your custom pipelines like RAG.
-
-        try:
-            filtered_chain, filtered_retriever = get_retreival_chain(user_message, self.base_retriever, self.chunks,
-                                                                     self.llm)
-            response = filtered_chain.run(user_message)
-            # Extract links of sources used in the response
-            relevant_docs = filtered_retriever.get_relevant_documents(user_message)
-            source_links = [doc.metadata["link"] for doc in relevant_docs]
-            response += f"These are the sources for my answer: {source_links}"
-        except Exception as e:
-            response = f'Could not complete knowledge search, ERROR: {e}'
-            print("ERROR retrieving")
-
-        return response
+    # Step 2: Filter these documents by `index_filter`
+    filtered_docs = [
+        doc for doc in initial_relevant_docs if doc.metadata["original_index"] in index_filter
+    ]
+    # Step 3: Return top `k` documents after filtering
+    # print(len(filtered_docs))
+    return filtered_docs[:k]
 
 def create_query(row):
     answer_length = ' The answer should be maximum ' + str(np.mean([len(row['answer_1']), len(row['answer_2']), len(row['answer_3'])])) + ' characters.'
@@ -202,7 +83,6 @@ def find_relevant_edges(graph, output_list):
 
         # if node1 in output_list and node2 in output_list:
         #    relevant_edges.append(edge)
-
     return relevant_edges
 
 
@@ -221,6 +101,7 @@ def get_relevant_docindex(df, relevant_edges):
             relevant_docindexs += rel_index.index.tolist()
     return relevant_docindexs
 
+
 def get_filtered_index(question, df_graph):
     print(question)
 
@@ -237,38 +118,133 @@ def get_filtered_index(question, df_graph):
     doc_index = list(set(relevant_doc_indexes))
     return doc_index
 
+class Pipeline:
+    class Valves(BaseModel):
+        pass
+    
+    def __init__(self):
+        # Optionally, you can set the id and name of the pipeline.
+        # Best practice is to not specify the id so that it can be automatically inferred from the filename, so that users can install multiple versions of the same pipeline.
+        # The identifier must be unique across all pipelines.
+        # The identifier must be an alphanumeric string that can include underscores or hyphens. It cannot contain spaces, special characters, slashes, or backslashes.
+        # self.id = "pipeline_example"
 
-def get_retreival_chain(query, base_retriever, chunks, llm):
-    # Indices of documents to keep
-    index_filter = get_filtered_index(query)  # Only include filtered documents
-    # print(index_filter)
+        # The name of the pipeline.
+        self.name = "KG RAG ESPOO"
+        self.vectorstore = None
+        self.llm = ChatGroq(
+            model="llama-3.1-8b-instant",
+            temperature=0,
+            max_tokens=None,
+            timeout=None,
+            max_retries=2,
 
-    # Create a filtered retriever with index filtering
-    # filtered_retriever = FilteredRetriever(retriever=base_retriever, index_filter=index_filter)
-    filtered_retriever = FilteredRetriever(
-        retriever=base_retriever,
-        original_documents=chunks,
-        index_filter=index_filter,
-        top_k_initial=50,  # Set the initial retrieval to 20
-        k=10  # Final filtered top 10 documents
-    )
+        )
+        self.chunks = None
+        self.base_retriever = None
 
-    prompt_template = PromptTemplate(
-        input_variables=["context", "question"],
+        retriever: BaseRetriever = Field(...)
+        original_documents: List[Document] = Field(...)
+        index_filter: List[int] = Field(...)
+        embedding_model_name: str = Field("all-MiniLM-L6-v2")
+        top_k_initial: int = Field(50)  # Number of top documents to initially retrieve
+        k: int = Field(10)  # Final number of filtered documents to return
 
-        template="""You are an assistant for question-answering tasks.
-            Use the following documents to answer the question about migration in Finland.
-            Be consise as much as possible.
-            Do not include phrases about provided documents in the answer.
 
-            Question: {question}
-            Documents: {context}
-            Answer:
-            """)
 
-    # Create the retrieval chain with the filtered retriever
-    retrieval_chain = RetrievalQA.from_llm(llm=llm, retriever=filtered_retriever, prompt=prompt_template)
+        pass
 
-    return retrieval_chain, filtered_retriever
+    async def on_startup(self):
+        # This function is called when the server is started.
+        print(f"on_startup:{__name__}")
+
+        # Get all entries (files and directories) in the current directory
+        #entries = os.listdir('.') # '.' represents the current directory
+        #print(f'Print Files:{len(entries)}')
+        # Iterate through the entries
+        #for entry in entries:
+            # Check if the entry is a file (and not a directory)
+        #    if os.path.isfile(os.path.join('.', entry)):
+        #        print(entry)
+       # 
+        df_graph = pd.read_csv('/app/pipelines/data/kg.csv')
+        df_graph = df_graph.dropna()
+        # Create document list from dataset
+        documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
+        print('Successfully loaded graph.')
+    
+        #print('Could not load KG - not found.')
+        documents = ''
+
+        # Initialize embedding model
+        embedding_model_name = "multi-qa-mpnet-base-cos-v1"
+        embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
+        print(embeddings)
+        self.chunks = create_chunks(documents)
+        vectorstore = FAISS.from_documents(self.chunks, embeddings)
+        self.base_retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={'k': 50, 'fetch_k': 200, 'lambda_mult': 0.25})
+
+
+    async def on_shutdown(self):
+        # This function is called when the server is stopped.
+        print(f"on_shutdown:{__name__}")
+        pass
+
+    async def on_valves_updated(self):
+        # This function is called when the valves are updated.
+        pass
+
+    async def inlet(self, body: dict, user: dict) -> dict:
+        # This function is called before the OpenAI API request is made. You can modify the form data before it is sent to the OpenAI API.
+        print(f"inlet:{__name__}")
+
+        print(body)
+        print(user)
+
+
+        return body
+
+    async def outlet(self, body: dict, user: dict) -> dict:
+        # This function is called after the OpenAI API response is completed. You can modify the messages after they are received from the OpenAI API.
+        print(f"outlet:{__name__}")
+
+        print(body)
+        print(user)
+
+        return body
+
+    def pipe(
+        self, user_message: str, model_id: str, messages: List[dict], body: dict
+    ) -> Union[str, Generator, Iterator]:
+        # This is where you can add your custom pipelines like RAG.
+        prompt_template = PromptTemplate(
+            input_variables=["context", "question"],
+
+            template="""You are an assistant for question-answering tasks.
+                               Use the following documents to answer the question about migration in Finland.
+                               Be concise as much as possible.
+                               Do not include phrases about provided documents in the answer.
+
+                               Question: {question}
+                               Documents: {context}
+                               Answer:
+                               """)
+
+        try:
+            # Create the retrieval chain with the filtered retriever
+            retrieval_chain = RetrievalQA.from_llm(llm=self.llm, retriever=self.base_retriever, prompt=prompt_template)
+
+            response = retrieval_chain.run(user_message)
+            # Extract links of sources used in the response
+            relevant_docs = get_relevant_documents(index_filter, self.base_retriever, k=10, top_k_initial=50, query=user_message)
+
+            source_links = [doc.metadata["link"] for doc in relevant_docs]
+            response += f"These are the sources for my answer: {source_links}"
+        except Exception as e:
+            response = f'Could not complete knowledge search, ERROR: {e}'
+            print("ERROR retrieving")
+
+        return response
+
 
 
