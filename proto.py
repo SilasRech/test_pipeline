@@ -169,12 +169,10 @@ class Pipeline:
        # 
         df_graph = pd.read_csv('/app/pipelines/data/kg.csv')
         df_graph = df_graph.dropna()
+        print(df_graph)
         # Create document list from dataset
         documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
         print('Successfully loaded graph.')
-    
-        #print('Could not load KG - not found.')
-        documents = ''
 
         # Initialize embedding model
         embedding_model_name = "multi-qa-mpnet-base-cos-v1"
