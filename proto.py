@@ -169,19 +169,19 @@ class Pipeline:
        # 
         df_graph = pd.read_csv('/app/pipelines/data/kg.csv')
         df_graph = df_graph.dropna()
-        print(df_graph)
+        print(f"GRAPH: {df_graph}")
         # Create document list from dataset
         documents = [(df_graph.text.iloc[num], df_graph.url.iloc[num]) for num in range(df_graph.shape[0])]
         print('Successfully loaded graph.')
-
+        print(f"Documents: {documents}")
         # Initialize embedding model
         embedding_model_name = "multi-qa-mpnet-base-cos-v1"
         embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
-        print(embeddings)
+        
         self.chunks = create_chunks(documents)
+        print(f"CHUNKS: {self.chunks})
         vectorstore = FAISS.from_documents(self.chunks, embeddings)
         self.base_retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={'k': 50, 'fetch_k': 200, 'lambda_mult': 0.25})
-
 
     async def on_shutdown(self):
         # This function is called when the server is stopped.
